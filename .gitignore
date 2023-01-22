@@ -4,7 +4,9 @@
 *.mat
 *.rar
 *.zip
+startup.m
 
 # Folders
+venv/
 
 # Exceptions
