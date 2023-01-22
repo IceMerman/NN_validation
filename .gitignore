@@ -1,0 +1,10 @@
+# Files
+*.pdf
+*.py[cod]
+*.mat
+*.rar
+*.zip
+
+# Folders
+
+# Exceptions
