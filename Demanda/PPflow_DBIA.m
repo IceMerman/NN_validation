@@ -31,10 +31,7 @@ N = 20; % Amount of random numbers to be generated
 %% Load data of power system (Matpower Format)
 mpc = NewEngland_New;
 file = 'New_England';
-% mpc = case57;
-% mpc = case39;
-% mpc = case14;
-% mpc = case30;
+
 %% Identification of load nodes
 nonnull_pload_idx = find(mpc.bus(:,3)~=0); % identificanco los nodos de carga PQ en sistema bajo prueba
 
@@ -48,8 +45,8 @@ nonnull_pload_idx = find(mpc.bus(:,3)~=0); % identificanco los nodos de carga PQ
 % N: numero de casos construidos (escenarios de demanda)
 %**************************************************************************
 SLOAD = load_cases(mpc,0.08,9,N);    %24 hours
-%  SLOAD = load_cases(mpc,0.08,8,N); %24 hours
 %%**************************************************************************
+
 %% -------------------------------------------------------------------------
 %                 (N-1) Contigencies selection by power system
 % -------------------------------------------------------------------------
@@ -83,8 +80,6 @@ poperationG = random('Uniform',0,1,[N ngen]);   % Uniform distribution for gener
 nconti = nLine + ngen;                          % # de contingencias que se puede tener en cuenta
 
 %%
-%%**************************************************************************
-
 %**************************************************************************
 %               Monte Carlo-based Probabilistic optimal load Flow
 %**************************************************************************
