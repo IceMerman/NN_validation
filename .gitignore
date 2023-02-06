@@ -8,5 +8,7 @@ startup.m
 
 # Folders
 venv/
+.ipynb_checkpoints/
+.vscode/
 
 # Exceptions
