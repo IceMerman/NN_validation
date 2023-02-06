@@ -94,6 +94,7 @@ OPF.VA   = zeros(size(mpc.bus,1),numeval);
 % OPF.fl_qfrom = zeros(size(mpc.branch,1),numeval);
 % OPF.fl_pto = zeros(size(mpc.branch,1),numeval);
 % OPF.fl_qto = zeros(size(mpc.branch,1),numeval);
+issecure = zeros(1, N);
 
 % Divergente cases:
 Ncd = 0;                                        % inizalization of counter
@@ -110,6 +111,7 @@ totgen = sum(mpc.gen(:,2));
 %%
 while (iss <= numeval-1)
     iss = iss+1;         % update of counter
+    issecure(iss) = 1;   % Set the case as secure
     fprintf(' Run Monte Carlo simulation # %5d \n',iss);
     mpc.branch = branch;
     mpc.gen = gen;
@@ -127,6 +129,7 @@ while (iss <= numeval-1)
         case 0
             disp('The Optimal Power Flow diverges ');
             Ncd = Ncd + 1;
+            issecure(iss) = 0;
             continue;
     end
     
@@ -216,6 +219,7 @@ while (iss <= numeval-1)
             case 0
                 disp('The Power Flow diverges ');
                 Ncd = Ncd + 1;
+                issecure(iss) = 0;
                 continue;
         end
     end
@@ -236,6 +240,16 @@ while (iss <= numeval-1)
     
 end
 % toc
+%% Export data
 namebase = ['BaseDatosNE_',file,'31_10_2022.mat'];
 save (namebase, 'OPF','poperationL','poperationG','SLOAD');
 
+% voltage magnitude
+VM = OPF.VM;
+% voltage ange
+VA = OPF.VA;
+% load profile
+SLOAD;
+% label
+
+save('db', 'VM', 'VA', 'SLOAD', 'issecure');
