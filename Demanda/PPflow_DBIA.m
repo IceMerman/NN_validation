@@ -26,7 +26,7 @@ clc
 %**************************************************************************
 %                               Reading PDFs
 %**************************************************************************
-N = 20; % Amount of random numbers to be generated
+N = 50000; % Amount of random numbers to be generated
 
 %% Load data of power system (Matpower Format)
 mpc = NewEngland_New;
@@ -90,6 +90,8 @@ numeval = N;
 datosLoad = struct('loading',zeros(numeval,1));
 OPF.VM   = zeros(size(mpc.bus,1),numeval);
 OPF.VA   = zeros(size(mpc.bus,1),numeval);
+OPF.Qgen = zeros(size(mpc.gen,1),numeval);
+OPF.Pgen = zeros(size(mpc.gen,1),numeval);
 % OPF.fl_pfrom = zeros(size(mpc.branch,1),numeval);
 % OPF.fl_qfrom = zeros(size(mpc.branch,1),numeval);
 % OPF.fl_pto = zeros(size(mpc.branch,1),numeval);
@@ -229,10 +231,10 @@ while (iss <= numeval-1)
     %% To save voltages, angles and other improtants variables in each case
     OPF.VM(:,iss)   = r.bus(:,8);
     OPF.VA(:,iss)   = r.bus(:,9);
-    %     OPF.Qgen(:,iss) = r.gen(:,3);
-    %     OPF.Pgen(:,iss) = r.gen(:,2);
-    %     OPF.Qden(:,iss) = r.bus(nonnull_pload_idx,4);
-    %     OPF.Pden(:,iss) = r.bus(nonnull_pload_idx,3);
+    OPF.Qgen(:,iss) = r.gen(:,3);
+    OPF.Pgen(:,iss) = r.gen(:,2);
+    OPF.Qden(:,iss) = r.bus(nonnull_pload_idx,4);
+    OPF.Pden(:,iss) = r.bus(nonnull_pload_idx,3);
     OPF.fl_pfrom(:,iss)= r.branch(:,14);
     OPF.fl_qfrom(:,iss)= r.branch(:,15);
     OPF.fl_pto(:,iss)= r.branch(:,16);
@@ -244,12 +246,13 @@ end
 namebase = ['BaseDatosNE_',file,'31_10_2022.mat'];
 save (namebase, 'OPF','poperationL','poperationG','SLOAD');
 
-% voltage magnitude
-VM = OPF.VM;
-% voltage ange
-VA = OPF.VA;
-% load profile
-SLOAD;
-% label
 
-save('db', 'VM', 'VA', 'SLOAD', 'issecure');
+VM = OPF.VM;
+VA = OPF.VA;
+Qgen = OPF.Qgen;
+Pgen = OPF.Pgen;
+Qload = OPF.Qden;
+Pload = OPF.Pden;
+
+dbname = sprintf('db%d',N);
+save(dbname, 'VM', 'VA', 'SLOAD', 'issecure', 'Qgen', 'Pgen');
