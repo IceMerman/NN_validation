@@ -7,14 +7,14 @@
 % By Ing. Walter Villa
 % San Juan, 23.01.2013
 
-% Ultima modificación:
-% Medellín, 31.10.2022
+% Ultima modificaciï¿½n:
+% Medellï¿½n, 31.10.2022
 
 % Comentarios:
 % No se tiene en cuenta el modelado de Generadores de Energia no Suministrada.
-% Se incluye la salida de generadores, transformadores y lineas de transmisión.
-% Se considera el análisis de nodos Antenna (PV y PQ).
-% Se realiza análisis de contingencia
+% Se incluye la salida de generadores, transformadores y lineas de transmisiï¿½n.
+% Se considera el anï¿½lisis de nodos Antenna (PV y PQ).
+% Se realiza anï¿½lisis de contingencia
 %%
 
 % close all
@@ -35,13 +35,13 @@ file = 'New_England';
 %% Identification of load nodes
 nonnull_pload_idx = find(mpc.bus(:,3)~=0); % identificanco los nodos de carga PQ en sistema bajo prueba
 
-%% Load demand cases (generación de escenarios de demanda de forma probabilistica)
+%% Load demand cases (generaciï¿½n de escenarios de demanda de forma probabilistica)
 
 % SLOAD = load_cases(mpc,a,hora,N)
 % SLOAD: corresponde a potencia activa y reactiva calculada para cada nodo PQ
 % mpc: nombre del sistema a evaluar
-% a: Desviación de demanda considerada para distribución normal de la demanda en cada nodo
-% hora: Momento de admisión a la curva de demanda
+% a: Desviaciï¿½n de demanda considerada para distribuciï¿½n normal de la demanda en cada nodo
+% hora: Momento de admisiï¿½n a la curva de demanda
 % N: numero de casos construidos (escenarios de demanda)
 %**************************************************************************
 SLOAD = load_cases(mpc,0.08,9,N);    %24 hours
@@ -51,17 +51,17 @@ SLOAD = load_cases(mpc,0.08,9,N);    %24 hours
 %                 (N-1) Contigencies selection by power system
 % -------------------------------------------------------------------------
 %  Topological analysis finding "antenas": se identifican nodos
-%  antenas(nodos que se conecta la sistema através de una rama ya sea LT o
+%  antenas(nodos que se conecta la sistema atravï¿½s de una rama ya sea LT o
 %  transformador).
 [antenas,fromto] = findantenas(mpc);
 
 % Transmision lines:
-Tlines_idx = find(mpc.branch(:,9)==0); % numeración interna de la matriz branch
+Tlines_idx = find(mpc.branch(:,9)==0); % numeraciï¿½n interna de la matriz branch
 
 % Transformers:
-Transf_idx = find(mpc.branch(:,9)~= 0); % numeración interna de la matriz branch
+Transf_idx = find(mpc.branch(:,9)~= 0); % numeraciï¿½n interna de la matriz branch
 
-% Selección de lineas transmisión y transformadores del sistema de potencia
+% Selecciï¿½n de lineas transmisiï¿½n y transformadores del sistema de potencia
 
 list_LT = sort([Tlines_idx;Transf_idx]) ;
 nLine = size(list_LT);                           % # de ramas del sistema que pueden salir en la contigencia (Lines and transformers)
@@ -73,7 +73,7 @@ P0 = 1-exp(-1*qtl);      % probabilidad de contingencia N-1 en el sistema. Tomad
 poperationL = random('Uniform',0,1,[N length(list_LT)]);  % Uniform distribution for transmission lines outages
 % =======================================================================================================================
 % Generators:
-% Selección de generadores del sistema de potencia (Seleccionar unicamente  tipo PV)
+% Selecciï¿½n de generadores del sistema de potencia (Seleccionar unicamente  tipo PV)
 fgen = find(mpc.bus(:,2) == 2);                 % generadores (PV) del sistema #s internos de la matriz
 ngen = size(fgen,1);                            % # de Generadores que se consideran en las contigencias. No el nodo Slack.
 poperationG = random('Uniform',0,1,[N ngen]);   % Uniform distribution for generator outages
@@ -84,7 +84,7 @@ nconti = nLine + ngen;                          % # de contingencias que se pued
 %               Monte Carlo-based Probabilistic optimal load Flow
 %**************************************************************************
 
-% número de corridas del Monte Carlo
+% nï¿½mero de corridas del Monte Carlo
 numeval = N;
 % preallocation de las base de datos (estructura):
 datosLoad = struct('loading',zeros(numeval,1));
@@ -123,16 +123,22 @@ while (iss <= numeval-1)
     mpc.bus(nonnull_pload_idx,3)=SLOAD(iss,1:end/2)';      % Load active power
     mpc.bus(nonnull_pload_idx,4)=SLOAD(iss,end/2+1:end)';  % Load reactive power
     
-    % Economic dispatch (optimal power flow)& BASE CASE
-    r = opf(mpc,opt);
+    % Economic dispatch (DC optimal power flow)& BASE CASE
+    r = rundcopf(mpc,opt);
     nodPV = r.gen(:,1);
-    % Revisión de la convergencia del OPF
+    % Revisiï¿½n de la convergencia del OPF
+    
     switch r.success
         case 0
-            disp('The Optimal Power Flow diverges ');
+            disp('The Optimal DC Power Flow diverges ');
             Ncd = Ncd + 1;
             issecure(iss) = 0;
             continue;
+    end
+
+    if checkACLimits(r, opt)==0
+        Ncd = Ncd + 1;
+        issecure(iss) = 0;
     end
     
     %               N-1 CONTINGENCY SELECTION AND ANALYSIS
@@ -189,7 +195,7 @@ while (iss <= numeval-1)
                         mpc.bus(antenas(idx),:) = [];
                     case 2 % PV node
                         mpc.bus(antenas(idx),:) = [];
-                        %                         ixdgen = mpc.gen(:,1);                                       % Numeración original del sistema
+                        %                         ixdgen = mpc.gen(:,1);                                       % Numeraciï¿½n original del sistema
                         fg = find(mpc.gen(:,1) == mpc.bus(antenas(idx),1));            % Antenas(idx));
                         Pgs = mpc.gen(fg,2);
                         mpc.gen(fg,:)= [];
@@ -216,7 +222,7 @@ while (iss <= numeval-1)
         mpc.gen(:, 2)= r.gen(:,2);
         r = runpf(mpc,opt);   
         nodPV = r.gen(:,1);
-        % Revisión de la convergencia del PF
+        % Revisiï¿½n de la convergencia del PF
         switch r.success
             case 0
                 disp('The Power Flow diverges ');
@@ -226,7 +232,7 @@ while (iss <= numeval-1)
         end
     end
     %     [busout, genout, branchout, f, success, info, et, g, jac, xr, pimul] = opf(baseMVA, bus, gen, branch, areas, gencost,opt);
-
+    
     
     %% To save voltages, angles and other improtants variables in each case
     OPF.VM(:,iss)   = r.bus(:,8);
