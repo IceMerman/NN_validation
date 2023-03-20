@@ -97,6 +97,9 @@ OPF.Pgen = zeros(size(mpc.gen,1),numeval);
 % OPF.fl_pto = zeros(size(mpc.branch,1),numeval);
 % OPF.fl_qto = zeros(size(mpc.branch,1),numeval);
 issecure = zeros(1, N);
+contigency = zeros(1, N);
+branchOut = zeros(1, N);
+genOut = zeros(1, N);
 
 % Divergente cases:
 Ncd = 0;                                        % inizalization of counter
@@ -163,12 +166,14 @@ while (iss <= numeval-1)
     end
     
     if isempty(Ig)
-        if find(I,1,'first')==22    % outages of this branch yields aislands
+        if find(I, 1,'first')==22    % outages of this branch yields aislands
             I(I)= 0;
-            if ~isempty(dfm),I(dfm(1))= 1;end
+            if ~isempty(dfm), I(dfm(1))= 1;end
         end
         
-        mpc.branch(I,11)= 0;                    % change to status failure (outages TL)
+        % change to status failure (outages TL)
+        mpc.branch(I,11)= 0;
+        branchOut(iss) = I;
         
         % Para las lineas que unen los nodos antena tenemos que analizar el tipo de nodo
         outline = find(I);
@@ -196,17 +201,20 @@ while (iss <= numeval-1)
     end
     
     if isempty(Il)
-        fg = find(mpc.gen(:,1) == mpc.bus(fgen(I),1));
-        mpc.gen(fg,8)= 0;                                          % change to status failure (outages of generator)
+        fg = find(mpc.gen(:,1) == mpc.bus(fgen(I),1),1,'first');
+        % change to status failure (outages of generator)
+        mpc.gen(fg,8)= 0;
+        genOut(iss) = fg;
     end
     
     % N-1 Contingency analysis:
     if nnz(I) >= 1 && issecure(iss)==1
         mpc.gen(:, 2)= r.gen(:,2);
         qr = runpf(mpc,opt);   
+        contigency(iss)=1;
         
         % Revision de la convergencia del PF
-        if r.success==0
+        if qr.success==0
             disp('The N-1 Power Flow diverges ');
             Ncd = Ncd + 1;
             issecure(iss) = 0;
@@ -243,4 +251,4 @@ Qload = OPF.Qden;
 Pload = OPF.Pden;
 
 dbname = sprintf('db%d',N);
-save(dbname, 'VM', 'VA', 'SLOAD', 'issecure', 'Qgen', 'Pgen');
+save(dbname, 'VM', 'VA', 'SLOAD', 'issecure', 'Qgen', 'Pgen', 'contigency', 'branchOut', 'genOut');
