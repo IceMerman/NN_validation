@@ -125,18 +125,13 @@ while (iss <= numeval-1)
     
     % Economic dispatch (DC optimal power flow)& BASE CASE
     r = rundcopf(mpc,opt);
-    nodPV = r.gen(:,1);
     % Revision de la convergencia del OPF
     
-    switch r.success
-        case 0
-            disp('The Optimal DC Power Flow diverges ');
-            Ncd = Ncd + 1;
-            issecure(iss) = 0;
-            continue;
-    end
-
-    if checkACLimits(r, opt)==0
+    if r.success==0
+        disp('The Optimal DC Power Flow diverges ');
+        Ncd = Ncd + 1;
+        issecure(iss) = 0;
+    elseif checkACLimits(r, opt)==0
         Ncd = Ncd + 1;
         issecure(iss) = 0;
     end
@@ -167,13 +162,6 @@ while (iss <= numeval-1)
         Ig =[];
     end
     
-    % Making sure to N-1 contingency
-    %       dfm =[];
-    %     if nnz(I) > 1
-    %        dfm = find(I,nnz(I)-1,'last');
-    %        I(dfm)= 0;
-    %     end
-    %----------------------------------------------------------------------
     if isempty(Ig)
         if find(I,1,'first')==22    % outages of this branch yields aislands
             I(I)= 0;
@@ -210,29 +198,23 @@ while (iss <= numeval-1)
     if isempty(Il)
         fg = find(mpc.gen(:,1) == mpc.bus(fgen(I),1));
         mpc.gen(fg,8)= 0;                                          % change to status failure (outages of generator)
-        %         fg = find(mpc.gen(:,1) == mpc.bus(fgen(I),1));
-        %         Pgs = mpc.gen(fg,2);
-        %         if (Pgs~=0)
-        %             mpc.gen(:,2) = mpc.gen(:,2).*(1 + Pgs./totgen);       % distribuye la potencia que sale
-        %         end
     end
     
     % N-1 Contingency analysis:
-    if nnz(I) >= 1
+    if nnz(I) >= 1 && issecure(iss)==1
         mpc.gen(:, 2)= r.gen(:,2);
-        r = runpf(mpc,opt);   
-        nodPV = r.gen(:,1);
+        qr = runpf(mpc,opt);   
+        
         % Revision de la convergencia del PF
-        switch r.success
-            case 0
-                disp('The Power Flow diverges ');
-                Ncd = Ncd + 1;
-                issecure(iss) = 0;
-                continue;
+        if r.success==0
+            disp('The N-1 Power Flow diverges ');
+            Ncd = Ncd + 1;
+            issecure(iss) = 0;
+        else
+            r = qr;
         end
     end
     %     [busout, genout, branchout, f, success, info, et, g, jac, xr, pimul] = opf(baseMVA, bus, gen, branch, areas, gencost,opt);
-    
     
     %% To save voltages, angles and other improtants variables in each case
     OPF.VM(:,iss)   = r.bus(:,8);
