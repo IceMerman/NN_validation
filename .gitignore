@@ -4,6 +4,7 @@
 *.mat
 *.rar
 *.zip
+*.asv
 startup.m
 
 # Folders
