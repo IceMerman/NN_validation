@@ -1,5 +1,8 @@
-function [ validation ] = checkACLimits(mpc, options)
+function [ validation ] = checkACLimits(mpc, n_shedding, options)
 %CHECKLIMITS Summary of this function goes here
+%   mpc = MatPowerCase
+%   n_shedding = Number of generators that acts as load shedding
+%   Options MatPowerOptions
 %   Detailed explanation goes here
     qr = runpf(mpc, options);
     validation = 1;
@@ -10,10 +13,10 @@ function [ validation ] = checkACLimits(mpc, options)
         elseif any(sqrt(qr.branch(:,14).^2 + qr.branch(:,15).^2) > qr.branch(:,8))
             disp('The AC Power Flow transport capacity violation');
             validation = 0;
-        elseif sum(qr.gen(end/2+1:end,2)) > 1e-3
+        elseif sum(qr.gen(end-n_shedding:end,2)) > 1e-3
             disp('The AC Power Flow generation capacity violation');
             validation = 0;
-        elseif sum(qr.gen(end/2+1:end,3)) > 1e-3
+        elseif sum(qr.gen(end-n_shedding:end,3)) > 1e-3
             disp('The AC Power Flow reactive generation capacity violation');
             validation = 0;
         end
