@@ -27,7 +27,9 @@ clc
 %**************************************************************************
 %                               Reading PDFs
 %**************************************************************************
-N = 50000; % Amount of random numbers to be generated
+N = 5; % Amount of random numbers to be generated
+
+compute_contigencies = 0;
 
 %% Load data of power system (Matpower Format)
 mpc = NewEngland_New;
@@ -108,7 +110,7 @@ genOut = zeros(1, N);
 Ncd = 0;
 I=0;
 % Number of generators that acts as load shedding (must be that last generators in the mpc file)
-n_shedding = 10;
+n_shedding = 3;
 
 % MATPOWER options
 % opt = mpoption('VERBOSE', 0, 'OUT_SYS_SUM', 0, 'OUT_AREA_SUM', 0,'OUT_BUS', 0,'OUT_BRANCH', 0,'OUT_GEN', 0,'OUT_ALL_LIM',0);
@@ -125,10 +127,16 @@ while (iss <= numeval-1)
     issecure(iss) = 1;   % Set the case as secure
     fprintf(' Run Monte Carlo simulation # %5d \n',iss);
     mpc.branch = branch;
-    % Set line power limits to infinite (to solve a DC single node opf)
-    %mpc.branch(:,6:8) = 1e20;
     mpc.gen = gen;
     mpc.bus = bus;
+    
+    % Set line power limits to infinite (to solve a DC single node opf)
+    mpc.branch(:,6:8) = 1e20;
+    % Randomize gen cost
+    [rsize, csize] = size(mpc.gencost);
+    mpc.gencost(1:end-n_shedding, 5) = rand(rsize-n_shedding,1);
+    mpc.gencost(1:end-n_shedding, 6) = 100*rand(rsize-n_shedding,1);
+    mpc.gencost(1:end-n_shedding, 7) = 15000*rand(rsize-n_shedding,1);
     
     %To update the generated random values of demand
     mpc.bus(nonnull_pload_idx,3) = SLOAD(iss,1:end/2)';      % Load active power
@@ -139,21 +147,21 @@ while (iss <= numeval-1)
     % Revision de la convergencia del OPF
     
     % Get dc result for generators
-    OPF.PgenDC = r.gen(:,2);
+    OPF.PgenDC(:,iss) = r.gen(:,2);
+    mpc.gen(:,2) = r.gen(:,2);
     
     % Restore line limits
-    % mpc.branch(:, 6:8) = branch(:, 6:8);
+    mpc.branch(:, 6:8) = branch(:, 6:8);
+    r.branch(:, 6:8) = branch(:, 6:8);
     
     if r.success==0
         disp('The Optimal DC Power Flow diverges ');
         Ncd = Ncd + 1;
         issecure(iss) = 0;
-    elseif checkACLimits(r, n_shedding, opt)==0
+    elseif checkACLimits(r, n_shedding, opt)>1
         Ncd = Ncd + 1;
         issecure(iss) = 0;
     end
-    
-    r = runpf(r, opt);
     
     % N-1 CONTINGENCY SELECTION AND ANALYSIS
     % To update of the generators and lines in failure operation
@@ -188,28 +196,28 @@ while (iss <= numeval-1)
         end
         
         % change to status failure (outages TL)
-        mpc.branch(I,11)= 0;
-        branchOut(iss) = I*compute_contigencies;
+        r.branch(I,11)= 0;
+        branchOut(iss) = I;
         
         % Para las lineas que unen los nodos antena tenemos que analizar el tipo de nodo
         outline = find(I);
         if ~isempty(outline)
             idx = find(fromto == outline);
             if ~isempty(idx)
-                tipo = mpc.bus(antenas(idx),2);     % tipo de nodo (# internos)
+                tipo = r.bus(antenas(idx),2);     % tipo de nodo (# internos)
                 if tipo == 3, continue; end;
                 
                 switch tipo                                 % se remueve el nodo de la antena (Para evitar nodos en isla)
                     case 1 % PQ node
-                        mpc.bus(antenas(idx),:) = [];
+                        r.bus(antenas(idx),:) = [];
                     case 2 % PV node
-                        mpc.bus(antenas(idx),:) = [];
+                        r.bus(antenas(idx),:) = [];
                         %                         ixdgen = mpc.gen(:,1);                                       % Numeracion original del sistema
-                        fg = find(mpc.gen(:,1) == mpc.bus(antenas(idx),1));            % Antenas(idx));
-                        Pgs = mpc.gen(fg,2);
-                        mpc.gen(fg,:)= [];
+                        fg = find(r.gen(:,1) == r.bus(antenas(idx),1));            % Antenas(idx));
+                        Pgs = r.gen(fg,2);
+                        r.gen(fg,:)= [];
                         if (Pgs~=0)
-                            mpc.gen(:,2) = mpc.gen(:,2).*(1 + Pgs./totgen);            % distribuye la potencia que sale
+                            r.gen(:,2) = r.gen(:,2).*(1 + Pgs./totgen);            % distribuye la potencia que sale
                         end
                 end
             end
@@ -217,16 +225,16 @@ while (iss <= numeval-1)
     end
     
     if isempty(Il)
-        fg = find(mpc.gen(:,1) == mpc.bus(fgen(I),1),1,'first');
+        fg = find(r.gen(:,1) == r.bus(fgen(I),1),1,'first');
         % change to status failure (outages of generator)
-        mpc.gen(fg,8)= 0;
-        genOut(iss) = fg*compute_contigencies;
+        r.gen(fg,8)= 0;
+        genOut(iss) = fg;
     end
     
     % N-1 Contingency analysis:
     if nnz(I) >= 1 && issecure(iss) == 1 && compute_contigencies == 1
-        mpc.gen(:, 2)= r.gen(:,2);
-        qr = runpf(mpc,opt);
+        r.gen(:, 2)= r.gen(:,2);
+        qr = runpf(r,opt);
         contigency(iss)=1;
         
         % Revision de la convergencia del PF
@@ -234,13 +242,15 @@ while (iss <= numeval-1)
             disp('The N-1 Power Flow diverges ');
             Ncd = Ncd + 1;
             issecure(iss) = 0;
-        elseif checkACLimits(r, n_shedding, opt)==0
+        elseif checkACLimits(r, n_shedding, opt)>1
             Ncd = Ncd + 1;
             issecure(iss) = 0;
         else
             r = qr;
         end
         
+    else
+        r = runpf(r, opt);
     end
     %     [busout, genout, branchout, f, success, info, et, g, jac, xr, pimul] = opf(baseMVA, bus, gen, branch, areas, gencost,opt);
     
@@ -259,8 +269,12 @@ while (iss <= numeval-1)
 end
 % toc
 %% Export data
-namebase = ['BaseDatosNE_',file,'31_10_2022.mat'];
-save (namebase, 'OPF','poperationL','poperationG','SLOAD');
+
+fprintf('>> Safe ration: %.2f\n', sum(issecure)/length(issecure));
+
+% namebase = ['BaseDatosNE_',file,'31_10_2022.mat'];
+namebase = ['BaseDatosNE_',file,datestr(today(), 'yyyymmdd', 'local'),'.mat'];
+save(namebase, 'OPF','poperationL','poperationG','SLOAD');
 
 VM = OPF.VM;
 VA = OPF.VA;
