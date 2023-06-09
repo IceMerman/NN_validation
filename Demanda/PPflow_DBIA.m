@@ -143,6 +143,7 @@ while (iss <= numeval-1)
     mpc.bus(nonnull_pload_idx,4) = SLOAD(iss,end/2+1:end)';  % Load reactive power
     
     % Economic dispatch (DC optimal power flow) & BASE CASE
+    mpc.branch(:, RATE_A) = 0; % disable line flow limits (mimic no network case) %-----------
     r = rundcopf(mpc, opt);
     % Revision de la convergencia del OPF
     
