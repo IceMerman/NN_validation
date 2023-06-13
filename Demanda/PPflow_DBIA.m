@@ -141,8 +141,8 @@ while (iss <= numeval-1)
     mpc.gencost(1:end-n_shedding, 7) = 15000*rand(rsize-n_shedding,1);
     
     %To update the generated random values of demand
-    mpc.bus(nonnull_pload_idx,3) = SLOAD(iss,1:end/2)';      % Load active power
-    mpc.bus(nonnull_pload_idx,4) = SLOAD(iss,end/2+1:end)';  % Load reactive power
+    mpc.bus(nonnull_pload_idx,3) = 1.05*SLOAD(iss,1:end/2)';      % Load active power
+    mpc.bus(nonnull_pload_idx,4) = 1.05*SLOAD(iss,end/2+1:end)';  % Load reactive power
     %%
     % Economic dispatch (DC optimal power flow) & BASE CASE
     opt = mpoption( 'opf.violation', 1e-4,'verbose', 0, 'out.all', 0);
@@ -157,6 +157,8 @@ while (iss <= numeval-1)
     % Restore line limits
     %mpc.branch(:, 6:8) = branch(:, 6:8);
     mpc.branch(:, 6) = branch(:, 6);
+    mpc.bus(nonnull_pload_idx,3) = SLOAD(iss,1:end/2)';      % Load active power
+    mpc.bus(nonnull_pload_idx,4) = SLOAD(iss,end/2+1:end)';  % Load reactive power
     
     %Se debe cambiar la options para considerar los limites de potencia en
     % en generadores para el AC PowerFlow
@@ -256,7 +258,7 @@ while (iss <= numeval-1)
             Ncd = Ncd + 1;
             issecure(iss) = issecure(iss) + 128;
         else 
-            check_status = checkACLimits(qr, n_shedding, opt);
+            check_status = checkACLimits(mpc, n_shedding, opt);
             if check_status > 1
                 Ncd = Ncd + 1;
                 issecure(iss) = issecure(iss) + check_status - 1;
